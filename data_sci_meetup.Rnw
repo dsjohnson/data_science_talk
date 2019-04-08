@@ -1,0 +1,677 @@
+%\documentclass[14pt, aspectratio=43]{beamer}
+\documentclass[14pt, handout, aspectratio=43]{beamer}
+
+\usepackage{amsmath, xspace, color, graphicx}
+\usepackage{algorithm,algorithmic}
+\usepackage[normal,tight,center]{subfigure}
+\usepackage{environ}
+\usepackage{tikz}
+
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{caption}
+
+% For overlaying text
+\usepackage[absolute, overlay]{textpos}
+% ref-- http://mirrors.ibiblio.org/CTAN/macros/latex/contrib/textpos/textpos.pdf
+
+\setlength{\subfigcapskip}{-.5em}
+
+%%%
+% PRELIMINARY FORMATTING
+%%%
+
+%%% colors
+\usepackage{color}
+\definecolor{noaa-light}{RGB}{0,174,239}  
+\definecolor{noaa-dark}{RGB}{37, 64, 143}
+\definecolor{slate}{RGB}{65, 92, 122}
+
+%%% format and Fonts
+\setbeamertemplate{frametitle}[default]%[center]
+\setbeamertemplate{items}[circle]
+\setbeamertemplate{itemize subitem}{--}
+\setbeamertemplate{navigation symbols}{} %no nav symbols
+\setbeamerfont{frametitle}{size=\Large}
+
+%%% Item colors
+\setbeamercolor{frametitle}{fg=slate}
+\setbeamercolor{structure}{fg=slate}
+\setbeamercolor{normal text}{fg=slate!50!black}
+\setbeamercolor{block title}{fg=noaa-light!30!white, bg=slate}
+\setbeamercolor{block body}{use=block title, bg=slate!10!white}
+% \setbeamertemplate{blocks}[rounded]
+\setbeamercolor{background canvas}{bg=slate!25!white}
+\setbeamercolor{item}{fg=slate}
+
+
+\newcommand{\halfmargin}{0.025\paperwidth}
+\newcommand{\margin}{0.05\paperwidth}
+
+\beamersetrightmargin{\margin}
+\beamersetleftmargin{\margin}
+
+% \NewEnviron{wideframe}[1][]{%
+%   \begin{frame}{#1}
+%   \makebox[\textwidth][c]{
+%   \begin{minipage}{\dimexpr\paperwidth-\halfmargin-\halfmargin\relax}
+%   \BODY
+%   \end{minipage}}
+%   \end{frame}
+% }
+
+% \setlength{\leftmargini}{\dimexpr\margin-0.7em}
+
+
+\newcommand{\sectitle}[1]{%
+{
+\setbeamercolor{background canvas}{bg=slate}
+\begin{frame}
+\vfill
+\textcolor{noaa-light!40!white}{\huge #1}
+\vfill
+\end{frame}
+}
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%% Shortcuts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\bigsep}{\itemsep=1.5\baselineskip}
+\newcommand{\medsep}{\itemsep=1.25\baselineskip}
+\newcommand{\smsep}{\itemsep=1.1\baselineskip}
+
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bb}{\mathbf{b}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bz}{\mathbf{z}}
+
+\newcommand{\bmu}{\boldsymbol{\mu}}
+\newcommand{\be}{\boldsymbol{\epsilon}}
+\newcommand{\bv}{\boldsymbol{\nu}}
+\newcommand{\bt}{\boldsymbol{\theta}}
+\newcommand{\ba}{\boldsymbol{\alpha}}
+\newcommand{\bd}{\boldsymbol{\delta}}
+\newcommand{\bg}{\boldsymbol{\gamma}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\def\hilite<#1>{\temporal<#1>{\color{slate!40!white}}{\color{slate!50!black}}{\color{slate!60!white}}}
+
+
+\begin{document}
+
+%%%%
+%%%% title page
+%%%%
+
+
+{
+\setbeamercolor{background canvas}{bg=slate}
+\setbeamercolor{normal text}{bg=slate!20!white, fg=slate!20!white}
+\usebeamercolor[fg]{normal text}
+\frame{
+\vspace*{1cm}
+\renewcommand{\baselinestretch}{1.5}\normalsize
+{\huge \bfseries  \textcolor{noaa-light!40!white}{
+%title here:
+GPs, GMRFs, and Splines, Oh My!
+}}\medskip
+
+\renewcommand{\baselinestretch}{1}\normalsize
+
+{\large \textcolor{noaa-light!40!white}{
+%subtitle here
+Nonparametric modeling with correlated Gaussian effects
+}}
+\bigskip\bigskip
+
+{\large \bfseries Devin S. Johnson, Ph.D.}\\ \bigskip
+\footnotesize {{\em NOAA Fisheries Marine Mammal Laboratory\\
+Seattle, Washington}}\\
+{\em Email: devin.johnson@noaa.gov}\\ \bigskip
+
+\vspace{\fill}
+{Data Science Meetup\\
+April 9, 2019}\\	
+\vspace*{-1.5cm}
+\begin{figure}
+\hspace{\fill}
+\includegraphics[width=0.4\textwidth]{noaa_fisheries.png}
+\end{figure}
+}
+}
+
+<<echo=F, message=FALSE>>==
+knitr::opts_chunk$set(cache=TRUE, fig.width = 6, fig.height=4, out.width = "\\textwidth")
+
+library(tidyverse)
+library(MASS)
+library(mgcv)
+library(cowplot)
+
+if(!require(gpe)) devtools::install_github("goldingn/gpe")
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}{Why GPs?}
+\end{frame}
+
+\begin{frame}{Why not GPs}
+\end{frame}
+
+
+\sectitle{The basics} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%
+%%%%
+%%%%
+\begin{frame}{Multivariate normal distribution}
+$$
+x \sim N(m, V)
+$$ \bigskip
+
+$m$ is the expected value (mean) of $x$ \medskip
+
+$V = [\sigma_{ij}]$ is the variance-covariance matrix
+\begin{itemize}
+\item $\sigma_{ii} = \text{var}(x_i)$
+\item $\sigma_{ij} = \text{cov}(x_i, x_j)$
+\end{itemize}\bigskip
+
+$V$ has some mathy constraints such as nonnegative-definitness, that is $a'V a \ge 0$ for any $a$.
+
+\end{frame}
+
+%%%
+%%%
+%%%
+\begin{frame}{Some properties}
+$x \sim N(m, V)$\bigskip
+
+\begin{itemize}
+\medsep
+\item $A x \sim N(Am, AVA')$
+\item Decompose $V = M\Lambda M'$ where $\Lambda$ is diagonal ($\lambda_1>\dots>\lambda_n$) if $\lambda_k$s are small for after some $p$, then $\tilde{V} = M \tilde{\Lambda} M'$ is a low rank approximation created by setting $\lambda_k=0$ for $k>p$
+
+% \item For a subset of elements, $x_1 \sim N(m_1, V_{11})$
+% \item If $x_1$ is observed, $x_2|x_1=a \sim N(\tilde{m}_2  , \tilde{V}_{22})$\medskip \\
+% -- $\tilde{m}_2 = m_2 + V_{21}V_{11}^{-1}(a-m_1)$\medskip \\
+% -- $\tilde{V}_2 = V_{22} - V_{21}V_{11}^{-1}V_{12}$
+\end{itemize}
+\end{frame}
+
+
+%%%
+%%%
+%%%
+\begin{frame}{Bayesian inference}
+Bayes rule
+$$
+p(x|y) = \frac{p(y|x)p(x)}{\int p(y|x)p(x) dx}
+$$
+Typically,
+\begin{itemize}
+\item $x=\theta$ and represents a set of parameters
+\item $p(y|x)$ is a probability model interest 
+\item $p(x)$ is the {\bf prior} distribution of $x$ before data is collected
+\item $p(x|y)$ is the {\bf posterior} distribution of $x$ after learning from y.
+\end{itemize}
+\end{frame}
+
+
+
+
+\sectitle{Gaussian processes} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{frame}{Bayesian linear model}
+% $$
+% \begin{aligned}
+% y_i &= \beta_0 + \beta_1 x_i + \epsilon_i\\
+% &= \beta_0 + f(x_i) + \epsilon_i
+% \end{aligned}
+% $$
+% 
+% \structure{prior distributions}\\
+% -- $p(\beta_0, \sigma) \propto 1$\\
+% -- $p(\beta_1) = N(0,\xi)$\\
+% 
+% Then \\
+% -- $p(y_i|beta_0, \sigma) = N(\beta_0, V)$\\
+% -- $V_{ij} = k(x_i, x_j) = \xi x_i x_j + \sigma^2$
+% 
+% \end{frame}
+
+
+
+%%%
+%%%
+%%%
+\begin{frame}{Gaussian processes (the mathy version)}
+GPs are prior distributions over functions
+
+$$f(x) \sim\mathcal{GP}(m(x), k(x,x'))$$
+
+characterized by 
+
+-- $m(x)$ = mean function (usually constant or 0) and 
+
+-- $k(x,x')$ = the covariance function
+
+Gaussian process because for any $x_1,\dots,x_n$
+$[f(x_1),\dots,f(x_n)]\sim N(0, K)$
+
+\end{frame}
+
+
+\begin{frame}{Covariance functions}
+
+\structure{Linear}
+
+$k(x,x') = \xi x\cdot x'$
+
+\structure{Squared exponential}
+
+$k(x,x') = \xi\exp\{ -\theta (x-x')^2/2 \}$
+
+% \structure{Periodic}
+%
+% $k(x,x') = \xi \exp\{ -\sum_j \theta_j sin(\pi(x-x')/\lambda_j)^2 \}$
+
+\structure{Exponential}
+
+$k(x,x') = \xi\exp\{ -\theta (x-x') \}$
+
+\structure{Construct a valid function}
+
+$f(x) = \int b(u-x)w(u)du$
+
+$k(x,x') = \int b(u-x)b(x'-u)du$
+
+\end{frame}
+
+\begin{frame}{Examples}
+<<echo=F>>==
+set.seed(123)
+k1 <- gpe::rbf("x")
+suppressWarnings(gpe::demoKernel(k1, ndraw = 3))
+@
+\end{frame}
+
+
+%%%
+%%%
+%%%%
+\begin{frame}{Gaussian process regression (in practice)}
+\begin{itemize}
+\medsep
+\item Gaussian processes are usually too burdonsome to work with for real problems
+\item Process convolution provides a way out
+\item Set $f(x) = \sum b(u_k-x)w(u_k)$
+\end{itemize}
+\begin{center}
+\includegraphics[width=0.7\textwidth]{pc_ex.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}{The motorcycle data}
+\scriptsize
+<<echo=T>>==
+library(MASS); data(mcycle)
+@
+
+<<echo=F, fig.width=8, fig.height=4, out.width="0.75\\textwidth">>==
+data(mcycle)
+plt_mcycle <- ggplot(data=mcycle) + geom_point(aes(x=times, y=accel))
+print(plt_mcycle)
+@
+\normalsize
+Model:
+
+accel = f(times) + error
+\vfill
+
+\end{frame}
+
+\begin{frame}[fragile]{}
+
+\scriptsize
+<<echo=T>>=
+u <- seq(-10, 75, length=50)
+sd_fac <- 1
+
+B_gau <- outer(
+  mcycle$times,u,
+  FUN=function(x,y,sd){dnorm(x,y,sd)}, 
+  sd=sd_fac*diff(u[1:2])
+)
+@
+\vspace{-0.5in}
+<<echo=F, fig.width=8, fig.height=3, out.height="0.5\\textheight">>==
+matplot(x=mcycle$times, B_gau, type='l', lty=1, lwd=2)
+@
+\normalsize
+$\mathbf{f}(\mathbf{x}) = \mathbf{B}\mathbf{w}$; $w(u_k) \sim N(0,\xi^2)$ \medskip \\
+$\mathbf{f}(\mathbf{x}) \sim N(\mathbf{0}, \xi^2\mathbf{B}\mathbf{B}')$
+\end{frame}
+
+
+\begin{frame}[fragile]{}
+\structure{Model}
+
+$\mathbf{y} = \mathbf{Bw} + \boldsymbol{\epsilon}$ 
+
+\small
+$(n\times 1) = (N\times p) (p \times 1) + (n \times 1)$ \bigskip
+
+\normalsize
+$w_k \sim \text{i.i.d.} N(0,\xi^2)$ and $\epsilon_i \sim \text{i.i.d.} N(0,\sigma^2)$ \bigskip\bigskip
+
+\structure{mgcv syntax}
+\small
+<<echo=T>>==
+fit_gau <- mgcv::gam(
+  accel ~ times + B_gau,
+  data=mcycle,
+  paraPen=list(B_gau=list(S=diag(length(u)))),
+  method="REML"
+)
+@
+\end{frame}
+
+
+\begin{frame}[fragile]{Some prediction}
+<<echo=F>>==
+### Make some predictions with the fitted model
+pred_times <- seq(min(mcycle$times), 60, 0.5)
+# Define the basis matrix for the predictions
+B_pred <- outer(
+  pred_times,
+  u, 
+  FUN=function(x,y,sd){dnorm(x,y,sd)}, sd=sd_fac*diff(u[1:2])
+)
+
+# Use mgcv to make the predictions
+pred_data <- as.data.frame(
+  list(
+    times=pred_times,
+    predict(fit_gau, newdata = list(times=pred_times, B_gau=B_pred), se.fit=T)
+  )
+)
+
+### Make a nifty pic of the predictions
+ggplot(data=mcycle) + geom_point(aes(x=times, y=accel)) +
+  geom_path(aes(x=times, y=fit), data=pred_data) +
+  geom_ribbon(
+    aes(x=times, ymin=fit-2*se.fit, ymax=fit+2*se.fit), 
+    data=pred_data, alpha=0.2
+  ) + 
+  geom_ribbon(
+    aes(x=times, 
+        ymin=fit-2*(se.fit+sqrt(fit_gau$sig2)), 
+        ymax=fit+2*(se.fit+sqrt(fit_gau$sig2))
+    ), 
+    data=pred_data, alpha=0.1
+  )
+@
+\end{frame}
+
+
+\begin{frame}[fragile]{Choosing the optimal kernel}
+<<echo=F>>==
+### Optimize the kernel width
+sd_fac <- seq(1,5,0.1)
+REML <- rep(NA, length(sd_fac))
+for(i in seq_along(sd_fac)){
+  sd <- sd_fac[i]*diff(u[1:2])
+  B_gau <- outer(
+    mcycle$times, 
+    u, 
+    FUN=function(x,y,sd){dnorm(x,y,sd)}, sd=sd
+  )
+  fit_gau <- mgcv::gam(
+    accel ~ times + B_gau, 
+    data=mcycle, 
+    paraPen=list(B_gau=list(S=diag(length(u)))),
+    method="REML"
+  )
+  REML[i] <- fit_gau$gcv.ubre
+}
+
+# plot the REML score
+sd_fac_opt = sd_fac[which.min(REML)]
+ggplot()+geom_path(aes(x=sd_fac, y=REML), lwd=2) + 
+  geom_vline(xintercept = sd_fac_opt, color="blue", lwd=2)
+
+@
+\end{frame}
+
+
+\begin{frame}[fragile]{Some better predictions?}
+
+<<echo=F>>==
+### Refit model with optimum kernel width
+sd <- sd_fac_opt*diff(u[1:2])
+B_gau <- outer(
+  mcycle$times, 
+  u, 
+  FUN=function(x,y,sd){dnorm(x,y,sd)}, sd=sd
+)
+fit_gau <- mgcv::gam(
+  accel ~ times + B_gau, 
+  data=mcycle, 
+  paraPen=list(B_gau=list(S=diag(length(u)))),
+  method="REML"
+)
+
+pred_times <- seq(min(mcycle$times), 60, 0.5)
+B_pred = B_gau <- outer(
+  pred_times,
+  u, 
+  FUN=function(x,y,sd){dnorm(x,y,sd)}, sd=sd
+)
+
+pred_data <- as.data.frame(
+  list(
+    times=pred_times,
+    predict(fit_gau, newdata = list(times=pred_times, B_gau=B_pred), se.fit=T)
+  )
+)
+
+plt_opt <- ggplot(data=mcycle) + geom_point(aes(x=times, y=accel)) +
+  geom_path(aes(x=times, y=fit), data=pred_data) +
+  geom_ribbon(
+    aes(x=times, ymin=fit-2*se.fit, ymax=fit+2*se.fit), 
+    data=pred_data, alpha=0.2
+  ) + 
+  geom_ribbon(
+    aes(x=times, 
+        ymin=fit-2*(se.fit+sqrt(fit_gau$sig2)), 
+        ymax=fit+2*(se.fit+sqrt(fit_gau$sig2))
+    ), 
+    data=pred_data, alpha=0.1
+  )
+print(plt_opt)
+@
+
+\end{frame}
+
+
+
+
+\sectitle{Penalized splines} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%
+%%%
+%%%
+\begin{frame}{Nonparametric regression modeling}
+$$
+y_i = f(x_i|\theta) + \epsilon_i
+$$
+\begin{itemize}
+\item The form of $f(\cdot|\beta)$ is unknown
+\item $\epsilon_i \sim N(0, \sigma)$
+\end{itemize}
+
+estimate $(\beta, \sigma)$ by minimizing {\bf penalized likelihood}
+$$
+\hat{\beta} = \underset{\beta}{\mathrm{argmax}} \left\{\sum_i \log \mathcal{L}(y_i|\beta, \sigma) + J_\lambda(\beta)\right\}
+$$
+where $J_\lambda$ is a penalty that keeps the parameters from overfitting (i.e., keeps the wiggliness down)
+\end{frame}
+
+
+\begin{frame}{Gaussian surface interpretation}
+There are many different types of penalized spline smoothers: cubic, thin-plate, 
+P-splines, B-splines, etc. \medskip
+
+But they all look like this: \medskip
+
+$f(x) = \sum_k^p \beta_kb_k(x)$ \medskip
+
+$J_\lambda(\beta) = -\lambda\frac{1}{2}\beta'\mathbf{S}\beta$ \medskip
+
+Looks familiar, hmmm.....\bigskip
+
+$\mathbf{f}(\mathbf{x}) \sim N(\mathbf{0}, \lambda^{-1}\mathbf{B}\mathbf{S}^{-}\mathbf{B}')$ 
+\end{frame}
+
+%%%%%%
+%%%%% Fur seal example
+%%%%%
+
+
+\begin{frame}[fragile]{Modeling northern fur seal pup migration}
+\begin{columns}
+\column{0.5\textwidth}
+\includegraphics[width=\textwidth]{pups_pic.jpg}
+\column{0.5\textwidth}
+\includegraphics[width=\textwidth]{nfs_pup.jpg}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]{The data: pup 355}
+\small
+<<>>==
+library(crawl); data("northernFurSeal")
+head(northernFurSeal)
+@
+\end{frame}
+
+
+<<echo=F, include=F>>==
+source("fur_seal_spline.R")
+@
+
+
+\begin{frame}[fragile]{The data: pup 355}
+\small
+<<echo=F>>==
+plt_data
+@
+\end{frame}
+
+
+\begin{frame}[fragile]{Stack data for fitting}
+<<eval=F>>==
+head(nfs_stack)
+hour     loc quality coord
+1 314342.9 4420274       3     X
+2 314343.0 4415376       1     X
+3 314353.3 4402463       2     X
+4 314354.0 4400014       1     X
+5 314354.5 4402241       1     X
+6 314355.9 4401573       1     X
+> 
+  @
+  Notice the coords are projected now
+  \end{frame}
+  
+  \begin{frame}[fragile]{Model location error}
+  $var(\epsilon) = \exp(2\gamma_g v)$ where `$g$' indexes a group and `$v$' is a covariate
+  \small
+  <<eval=F>>==
+## define Argos error variance form
+nfs_stack$ones <- 1 
+# necessary to trick the variance function
+fix <- c('3'=log(150), '1'=log(500), '2'=log(250))
+var_func <- varExp(
+  fixed = fix,
+  form = formula(~ones|quality)
+)
+@
+\end{frame}
+
+\begin{frame}[fragile]{Fit model and sample from posterior paths}
+\small
+<<eval=F>>==
+fit = mgcv::gamm(
+  loc ~ 0 + coord + 
+    s(hour,by=coord, k=200, bs=c("ps","ps")), 
+  weights = var_func,
+  data=nfs_stack, method="REML")
+### Make some simulated paths
+B = predict(
+  fit[["gam"]],newdata=newdata, type="lpmatrix")
+beta = coef(fit$gam)
+V = vcov(fit$gam, unconditional = T)
+beta_smp = t(rmvnorm(20, beta, V)) 
+paths <- foreach(i=1:20)%do%{
+  p <- B %*% beta_smp[,i] %>% 
+    matrix(., nrow=nrow(newdata)/2, ncol=2)
+  p
+}
+@
+\end{frame}
+
+\begin{frame}[fragile]{Predicted path}
+<<echo=F>>==
+plt_pred
+@
+\end{frame}
+
+\begin{frame}[fragile]{Path posterior samples}
+<<echo=F>>==
+plt_tracks
+@
+\end{frame}
+
+
+
+
+
+\sectitle{Gaussian Markov random fields} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}{Modeling functions discretely}
+What if $x$ isn't continuous? Then $f(x)$ only makes sense for, say, $x_1,\dots,x_k$
+
+\end{frame}
+
+
+
+
+
+
+{
+\usebackgroundtemplate{%
+\tikz\node[opacity=0.4, inner sep=0]{\includegraphics[width=\paperwidth, height=\paperheight, scale=1]{nfs_pup_questions.png}};}
+\begin{frame}
+\textcolor{slate}{\Huge\bf Questions?}
+\end{frame}
+}
+
+
+
+
+
+\end{document}

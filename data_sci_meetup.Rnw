@@ -159,7 +159,20 @@ library(cowplot)
 if(!require(gpe)) devtools::install_github("goldingn/gpe")
 @
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Code, etc...}
+Everything presented here is avaialble on my github account \bigskip
+
+
+{\bf user}: \begin{verbatim}dsjohnson\end{verbatim}
+
+
+{\bf repo}: \begin{verbatim}data_science_tak\end{verbatim}
+
+\end{frame}
+
 
 \begin{frame}{Why GPs?}
 \begin{itemize}

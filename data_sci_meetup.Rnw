@@ -1,4 +1,4 @@
-%\documentclass[14pt, aspectratio=43]{beamer}
+% \documentclass[14pt, aspectratio=43]{beamer}
 \documentclass[14pt, handout, aspectratio=43]{beamer}
 
 \usepackage{amsmath, xspace, color, graphicx}
@@ -162,9 +162,23 @@ if(!require(gpe)) devtools::install_github("goldingn/gpe")
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}{Why GPs?}
+\begin{itemize}
+\bigsep
+\item You don't have to assume functional forms
+\item No need for training data (i.e., cross-validation) for parameter estimation
+\item Works quite well at prediction 
+\item Certain GPs are equivalent to a infinite node NN
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Why not GPs}
+\begin{itemize}
+\bigsep
+\item They are computationally burdensome \\ (scales like $n^3$)
+\item Estimation can be numerically tricky
+\item There's actually not much software out there for complex data analysis using GPs (in the base form)
+\end{itemize}
+
 \end{frame}
 
 
@@ -186,7 +200,7 @@ $V = [\sigma_{ij}]$ is the variance-covariance matrix
 \item $\sigma_{ij} = \text{cov}(x_i, x_j)$
 \end{itemize}\bigskip
 
-$V$ has some mathy constraints such as nonnegative-definitness, that is $a'V a \ge 0$ for any $a$.
+$V$ has some mathy constraints such as nonnegative-definiteness, that is $a'V a \ge 0$ for any $a$.
 
 \end{frame}
 
@@ -263,7 +277,7 @@ characterized by
 
 -- $m(x)$ = mean function (usually constant or 0) and 
 
--- $k(x,x')$ = the covariance function
+-- $k(x,x')$ = the covariance function \bigskip\bigskip
 
 Gaussian process because for any $x_1,\dots,x_n$
 $[f(x_1),\dots,f(x_n)]\sim N(0, K)$
@@ -275,11 +289,11 @@ $[f(x_1),\dots,f(x_n)]\sim N(0, K)$
 
 \structure{Linear}
 
-$k(x,x') = \xi x\cdot x'$
+$k(x,x') = \xi x\cdot x'$\bigskip
 
 \structure{Squared exponential}
 
-$k(x,x') = \xi\exp\{ -\theta (x-x')^2/2 \}$
+$k(x,x') = \xi\exp\{ -\theta (x-x')^2/2 \}$\bigskip
 
 % \structure{Periodic}
 %
@@ -287,17 +301,17 @@ $k(x,x') = \xi\exp\{ -\theta (x-x')^2/2 \}$
 
 \structure{Exponential}
 
-$k(x,x') = \xi\exp\{ -\theta (x-x') \}$
+$k(x,x') = \xi\exp\{ -\theta (x-x') \}$\bigskip
 
 \structure{Construct a valid function}
 
-$f(x) = \int b(u-x)w(u)du$
+$f(x) = \int b(u-x)w(u)du$\medskip
 
 $k(x,x') = \int b(u-x)b(x'-u)du$
 
 \end{frame}
 
-\begin{frame}{Examples}
+\begin{frame}{Draws of a GP using squared-exponential}
 <<echo=F>>==
 set.seed(123)
 k1 <- gpe::rbf("x")
@@ -312,7 +326,7 @@ suppressWarnings(gpe::demoKernel(k1, ndraw = 3))
 \begin{frame}{Gaussian process regression (in practice)}
 \begin{itemize}
 \medsep
-\item Gaussian processes are usually too burdonsome to work with for real problems
+\item Gaussian processes are usually too burdensome to work with for real problems
 \item Process convolution provides a way out
 \item Set $f(x) = \sum b(u_k-x)w(u_k)$
 \end{itemize}
@@ -506,6 +520,16 @@ print(plt_opt)
 \end{frame}
 
 
+\begin{frame}{Ok, where's the Bayesian part?}
+\begin{itemize}
+\item $\hat{f}(x)$ and $var(\hat{f}(x)$) are the Best Linear Unbiased Estimator
+\item The BLUP is equivalent to the mean and variance of $p(f|\xi, \mathbf{y})$, the posterior distribution of $f$ (conditioned on $\xi$)
+\item mgcv can approximate the variance of $p(f|\mathbf{y})$, the true posterior
+\item $p(f|\xi, \mathbf{y})$ is normal for normal response, approximate for non-normal (e.g., Poisson)
+\end{itemize}
+\end{frame}
+
+
 
 
 \sectitle{Penalized splines} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -531,7 +555,7 @@ where $J_\lambda$ is a penalty that keeps the parameters from overfitting (i.e.,
 
 
 \begin{frame}{Gaussian surface interpretation}
-There are many different types of penalized spline smoothers: cubic, thin-plate, 
+There are many different types of penalized spline smoother: cubic, thin-plate, 
 P-splines, B-splines, etc. \medskip
 
 But they all look like this: \medskip
@@ -650,13 +674,71 @@ plt_tracks
 
 
 
-\sectitle{Gaussian Markov random fields} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectitle{Markov random fields} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}{Modeling functions discretely}
-What if $x$ isn't continuous? Then $f(x)$ only makes sense for, say, $x_1,\dots,x_k$
-
+\begin{itemize}
+\medsep
+\item $f(x)$ only makes sense for, fixed $x_1,\dots,x_k$
+\item Because we only have a few neighbors, lets model each location conditioned on it's neighbors
+\end{itemize}
+$$
+f(x_i) \sim N(\bar{f}_i, \xi^2/n_i)
+$$
+\begin{itemize}
+\item $\bar{f}_i$ mean $f(x_j)$ for all $x_i$ neighbors
+\item $n_i$ = number of neighbors of $x_i$
+\item This is known as the Intrinsic Conditionally Auto(R)egressive model, ICAR
+\end{itemize}
 \end{frame}
 
+\begin{frame}{Markov random fields}
+\begin{itemize}
+\medsep
+\item MRFs are based on the previous type of neighborhood structure
+\item Just like GPs, there are many different versions, ICAR is just a very common example
+\item Models are built on the precision matrix (inverse on the covariance matrix)
+\item Thus they can be very computationally efficient because there is no need to invert the covariance matrix in the likelihood
+\end{itemize}
+\end{frame}
+
+<<echo=F, include=F>>==
+source("mrf_example.R")
+@
+
+\begin{frame}{Remote sensed CHl data}
+<<echo=F>>==
+print(plt_chl)
+@
+\end{frame}
+
+\begin{frame}[fragile]{mgcv, not the best choice for MRFs}
+\footnotesize
+<<eval=F>>==
+nb <- chl %>% spdep::poly2nb() %>% 
+  `names<-`(chl$cell) %>% `class<-`("list")
+
+chl <- chl %>% 
+  mutate(
+    cell = factor(cell),
+    weight = ifelse(is.na(log10chl), 0, 1),
+    log10chl = ifelse(is.na(log10chl), 
+                      mean(log10chl, na.rm=T), log10chl)
+  )
+### Fit a GMRF model
+fit <- mgcv::gam(log10chl ~ s(cell, bs="mrf",xt=list(nb=nb)),
+                 data=chl, weights=weight)
+### Predict missing values
+chl <- bind_cols(chl, predict(fit, se.fit=T) %>% 
+                   as.data.frame())
+@
+\end{frame}
+
+\begin{frame}{CHl prediction}
+<<echo=F>>==
+print(plt_chl_pred)
+@
+\end{frame}
 
 
 
@@ -664,9 +746,9 @@ What if $x$ isn't continuous? Then $f(x)$ only makes sense for, say, $x_1,\dots,
 
 {
 \usebackgroundtemplate{%
-\tikz\node[opacity=0.4, inner sep=0]{\includegraphics[width=\paperwidth, height=\paperheight, scale=1]{nfs_pup_questions.png}};}
+\tikz\node[opacity=0.7, inner sep=0]{\includegraphics[width=\paperwidth, height=\paperheight, scale=1]{nfs_pup_questions.png}};}
 \begin{frame}
-\textcolor{slate}{\Huge\bf Questions?}
+\textcolor{slate}{\Huge\bf The End}
 \end{frame}
 }
 
